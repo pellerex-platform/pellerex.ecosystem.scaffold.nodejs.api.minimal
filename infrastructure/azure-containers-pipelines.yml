@@ -1,0 +1,81 @@
+trigger:
+  - <target-branch>
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  - group: PipelineVariables
+  - name: projectName
+    # Matches the .NET reference artifact identity - the release side consumes this name.
+    value: "Pellerex.Ecosystem.ManagedApi.RepoUniqueIdentifier"
+  - name: dockerRepositoryName
+    value: "pellerex/RepoUniqueNormalisedIdentifier"
+  - name: nodeVersion
+    value: "22.x"
+  - name: feed
+    value: "ManagedApiService/External.Latest"
+
+steps:
+  - checkout: self
+    lfs: true
+
+  - task: NodeTool@0
+    displayName: "Use Node.js $(nodeVersion)"
+    inputs:
+      versionSpec: "$(nodeVersion)"
+
+  # NODE-D21 — install from the committed lockfile (reproducible, supply-chain safe).
+  - script: |
+      npm ci
+    displayName: "npm ci"
+
+  # NODE-R11 — a non-compiling scaffold fails CI here.
+  - script: |
+      npm run build
+    displayName: "nest build"
+
+  - script: |
+      npm test
+    displayName: "unit tests"
+
+  # NODE-D21 — supply-chain gate: fail the build on a high/critical advisory.
+  - script: |
+      npm audit --audit-level=high
+    displayName: "npm audit (high)"
+
+  - task: CopyFiles@2
+    inputs:
+      SourceFolder: "infrastructure"
+      Contents: "**"
+      TargetFolder: "$(Build.ArtifactStagingDirectory)"
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+      artifactName: "$(projectName)"
+    displayName: "Upload Artifacts"
+
+  - task: Docker@2
+    inputs:
+      repository: "$(dockerRepositoryName)"
+      command: "build"
+      Dockerfile: "**/Dockerfile"
+      tags: |
+        latest
+        v1.0.0
+
+  - task: Docker@2
+    displayName: Push
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/<target-branch>')
+    inputs:
+      command: push
+      containerRegistry: "DockerHub"
+      repository: "$(dockerRepositoryName)"
+      tags: |
+        latest
+        v1.0.0
+
+  # Deployment (`helm upgrade` to AKS) is performed by the platform ReleaseProcess
+  # using infrastructure/Helm/values.{env}.yaml + secret-provider-class-{env}.yaml —
+  # identical to the .NET/Go scaffolds. It is intentionally NOT duplicated here.

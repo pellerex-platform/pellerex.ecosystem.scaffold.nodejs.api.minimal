@@ -1,0 +1,130 @@
+# Root API spec — the Pellerex Standards scan checks /openapi.yaml (repo root) for its
+# HasApiSpec maturity signal. Keep this in sync with the controllers under src/.
+openapi: 3.0.3
+info:
+  title: RepoUniqueNormalisedIdentifier
+  description: Pellerex managed API (Node / NestJS-Fastify minimal scaffold).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8890
+paths:
+  /:
+    get:
+      summary: Service info
+      tags: [Info]
+      responses:
+        "200":
+          description: Service name, environment and status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfoResponse"
+  /health/startup:
+    get:
+      summary: Startup probe
+      tags: [Health]
+      responses:
+        "200":
+          description: Application has started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /health/live:
+    get:
+      summary: Liveness probe
+      tags: [Health]
+      responses:
+        "200":
+          description: Application is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /health/ready:
+    get:
+      summary: Readiness probe
+      tags: [Health]
+      responses:
+        "200":
+          description: Ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /v1/hello:
+    get:
+      summary: Sample endpoint
+      tags: [Sample]
+      responses:
+        "200":
+          description: Sample greeting.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+  /v1/echo:
+    post:
+      summary: Sample validated input endpoint
+      tags: [Sample]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EchoRequest"
+      responses:
+        "201":
+          description: Echoed message.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Validation failure (missing, non-string, oversized or unexpected fields).
+  /v1/secret-status:
+    get:
+      summary: Proves the Key Vault secret mount is readable
+      tags: [Sample]
+      responses:
+        "200":
+          description: Reports only WHETHER secrets were read — never their values.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecretStatusResponse"
+components:
+  schemas:
+    InfoResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        environment:
+          type: string
+        status:
+          type: string
+    HealthStatus:
+      type: object
+      additionalProperties: true
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    EchoRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          maxLength: 500
+    SecretStatusResponse:
+      type: object
+      properties:
+        dbConnectionStringLoaded:
+          type: boolean
+        secretsLoaded:
+          type: array
+          items:
+            type: string

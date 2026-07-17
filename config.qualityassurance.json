@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "NestJS API (qualityassurance)",
+    "version": "1.0.0",
+    "environment": "qualityassurance"
+  },
+  "azure": {
+    "keyVault": {
+      "name": "<qualityassurance-keyvault-name>"
+    },
+    "applicationInsights": {
+      "connectionString": "<azure-app-insights-connection-string-in-qualityassurance>"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "file_enabled": true,
+    "file_directory": "/var/log/app",
+    "retention_days": 31
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "NestJS API (development)",
+    "version": "1.0.0",
+    "environment": "development"
+  },
+  "azure": {
+    "keyVault": {
+      "name": ""
+    },
+    "applicationInsights": {
+      "connectionString": ""
+    }
+  },
+  "logging": {
+    "level": "debug",
+    "file_enabled": true,
+    "file_directory": "logs",
+    "retention_days": 7
+  }
+}

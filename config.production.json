@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "NestJS API (production)",
+    "version": "1.0.0",
+    "environment": "production"
+  },
+  "azure": {
+    "keyVault": {
+      "name": "<production-keyvault-name>"
+    },
+    "applicationInsights": {
+      "connectionString": "<azure-app-insights-connection-string-in-production>"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "file_enabled": true,
+    "file_directory": "/var/log/app",
+    "retention_days": 31
+  }
+}

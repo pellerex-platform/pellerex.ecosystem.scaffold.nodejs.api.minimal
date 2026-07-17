@@ -1,0 +1,143 @@
+replicaCount: 2
+deploymentStrategy: RollingUpdate
+
+image:
+  repository: pellerex/RepoUniqueNormalisedIdentifier
+  pullPolicy: Always
+  tag: "v1.0.0"
+
+env:
+  # NODE-D14 — NODE_ENV=production in every deployed environment (runtime mode).
+  - name: "NODE_ENV"
+    value: "production"
+  # APP_ENV selects config.{env}.json (kept separate from NODE_ENV).
+  - name: "APP_ENV"
+    value: "production"
+  # NODE-D5 — hardcoded 8890 (not the <port-number> token).
+  - name: "PORT"
+    value: "8890"
+  - name: "ContainerMode"
+    value: "true"
+  - name: "SECRETS_MOUNT_PATH"
+    value: "/mnt/secrets-store"
+
+global:
+  envValuesFrom:
+    Runtime__IpAddress: status.podIP
+
+# NODE-D6 — CSI tmpfs file mount of the Key Vault.
+secretProviderClass:
+  enabled: <secret-provider-class-enabled>
+
+volumes:
+  - name: RepoUniqueNormalisedIdentifier-api-keyvault-volume
+    csiSecretProviderClass: RepoUniqueNormalisedIdentifier-api-vault
+
+volumeMounts:
+  - name: RepoUniqueNormalisedIdentifier-api-keyvault-volume
+    readOnly: true
+    mountPath: /mnt/secrets-store
+
+# Writable emptyDir for the daily-rolling file sinks (must match config.{env}.json
+# file_directory). emptyDir is ephemeral - files complement stdout/App Insights,
+# they are not the durable store.
+logging:
+  directory: /var/log/app
+
+imagePullSecrets:
+  - name: image-pull-secret
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+# NODE-D21 — pod hardening.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+# NODE-D21 — container hardening.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  # NODE-D5 — targetPort hardcoded to the container port 8890 (not <port-number>).
+  targetPort: 8890
+
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      if ($http_origin ~* "^https?://((?:www\.pellerex\.com))$") {
+        set $cors "true";
+      }
+      if ($request_method = 'OPTIONS') {
+        set $cors "${cors}options";
+      }
+
+      if ($cors = "true") {
+        add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+        add_header 'Access-Control-Allow-Methods' 'GET, PUT, POST, DELETE, PATCH, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'x-signalr-user-agent,x-requested-with,Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
+      }
+
+      if ($cors = "trueoptions") {
+        add_header 'Access-Control-Allow-Origin' "$http_origin";
+        add_header 'Access-Control-Allow-Methods' 'GET, PUT, POST, DELETE, PATCH, OPTIONS';
+        add_header 'Access-Control-Allow-Headers' 'x-signalr-user-agent,x-requested-with,Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent';
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+        add_header 'Access-Control-Max-Age' 1728000;
+        add_header 'Content-Type' 'text/plain charset=UTF-8';
+        add_header 'Content-Length' 0;
+        return 204;
+      }
+
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: api.pellerex.com
+      paths:
+        - path: /production/RepoUniqueNormalisedIdentifier(/|$)(.*)
+          pathType: Prefix
+  defaultBackend:
+    service:
+
+# NODE-D20 — scale via replicas + resource requests/limits (not the cluster module).
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

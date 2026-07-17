@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "NestJS API (staging)",
+    "version": "1.0.0",
+    "environment": "staging"
+  },
+  "azure": {
+    "keyVault": {
+      "name": "<staging-keyvault-name>"
+    },
+    "applicationInsights": {
+      "connectionString": "<azure-app-insights-connection-string-in-staging>"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "file_enabled": true,
+    "file_directory": "/var/log/app",
+    "retention_days": 31
+  }
+}
