@@ -12,7 +12,7 @@ export const validationSchema = Joi.object({
   APP_ENV: Joi.string()
     .valid('development', 'staging', 'qualityassurance', 'production')
     .default('development'),
-  PORT: Joi.number().default(8890),
+  PORT: Joi.number().default(<port-number>),
   ContainerMode: Joi.string().valid('true', 'false').default('false'),
   SECRETS_MOUNT_PATH: Joi.string().optional(),
   APPLICATIONINSIGHTS_CONNECTION_STRING: Joi.string().optional().allow(''),

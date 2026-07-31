@@ -19,7 +19,7 @@ if [ ! -d "$SECRETS_DIR" ] || [ -z "$(ls -A "$SECRETS_DIR" 2>/dev/null)" ]; then
 fi
 
 export APP_ENV=development
-export PORT=8890
+export PORT=<port-number>
 export ContainerMode=true
 export SECRETS_MOUNT_PATH="$SECRETS_DIR"
 
