@@ -2,7 +2,7 @@
 
 A production-ready **NestJS** backend-API scaffold for the Pellerex managed-API
 platform — the Node.js peer of `dotnet.api.scaffold.minimal`. It satisfies the same
-platform contract (tokeniser, port 8890, root health paths, Helm topology, CSI Key
+platform contract (tokeniser, port <port-number>, root health paths, Helm topology, CSI Key
 Vault, DockerHub, ProxyApi) so the generic provisioning chain runs against it with no
 special-casing.
 
@@ -16,7 +16,7 @@ and `<secret-provider-class-enabled>` are substituted by the platform
 | Area | Choice | Decision |
 |---|---|---|
 | HTTP adapter | **Fastify** (`@nestjs/platform-fastify`) | NODE-D20 |
-| Port | **8890** hardcoded everywhere (not the `<port-number>` token → 9000) | NODE-D5 |
+| Port | The `<port-number>` token everywhere, provisioned platform-wide | NODE-D5 |
 | Health | `@nestjs/terminus` at `/health/{startup,live,ready}` (root, no `/api`) | NODE-D12 |
 | Config | `@nestjs/config` + `config.{env}.json`, validate-at-boot / fail-fast | NODE-D22 |
 | Secrets | CSI **tmpfs file mount**, key-per-file → `@nestjs/config` (no `secretObjects`, no env vars, never in etcd) | NODE-D6 |
@@ -66,7 +66,7 @@ src/
   hello/                      sample endpoint + class-validator DTO + /v1/secret-status
 infrastructure/
   Dockerfile is at repo root
-  Helm/                       Deployment + Service(ClusterIP 80→8890) + Ingress + serviceaccount, per-env values
+  Helm/                       Deployment + Service(ClusterIP 80→<port-number>) + Ingress + serviceaccount, per-env values
   secret-provider-class-{env}.yaml   CSI file mount, *-api-vault, no secretObjects
   azure-containers-pipelines.yml     npm ci → nest build → test → npm audit → docker build/push
 ```
@@ -75,11 +75,11 @@ infrastructure/
 
 ```bash
 ./start/setup-secrets.sh   # once: seed ~/.pellerex/secrets/<product>/ (key-per-file)
-./start/run-local.sh       # http://localhost:8890 — reads secrets from the local mount (prod parity)
+./start/run-local.sh       # http://localhost:<port-number> — reads secrets from the local mount (prod parity)
 
 # or plain, without the local secret mount:
 npm ci
-npm run start:dev          # http://localhost:8890
+npm run start:dev          # http://localhost:<port-number>
 npm test
 npm run build              # -> dist/
 ```

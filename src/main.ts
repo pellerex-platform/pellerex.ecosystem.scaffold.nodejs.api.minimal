@@ -15,11 +15,11 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { CORRELATION_ID_HEADER } from './logging/logger-options';
 
 /**
- * Container port — hardcoded to the platform contract (NODE-D5). NOT the
- * `<port-number>` token (which resolves to 9000). Dockerfile `EXPOSE 8890`, Helm
- * `Service.targetPort: 8890` and the deployment `containerPort: 8890` all match.
+ * Container port — the `<port-number>` tokeniser token (NODE-D5), provisioned to the
+ * platform port. Dockerfile `EXPOSE <port-number>`, Helm `Service.targetPort: <port-number>`
+ * and the deployment `containerPort: <port-number>` all match.
  */
-const PORT = 8890;
+const PORT = <port-number>;
 
 async function bootstrap(): Promise<void> {
   // NODE-D20 — NestJS on the Fastify adapter (~2x Express throughput).

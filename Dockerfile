@@ -37,10 +37,10 @@ COPY --chown=nodejs:nodejs config.*.json ./
 
 USER nodejs
 
-EXPOSE 8890
+EXPOSE <port-number>
 
 # Hits the root health path (NODE-D12). Uses Node's http (no extra packages).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "require('http').get('http://127.0.0.1:8890/health/startup',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+  CMD node -e "require('http').get('http://127.0.0.1:<port-number>/health/startup',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 CMD ["node", "dist/main.js"]

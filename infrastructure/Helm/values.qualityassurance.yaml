@@ -13,9 +13,9 @@ env:
   # APP_ENV selects config.{env}.json (kept separate from NODE_ENV).
   - name: "APP_ENV"
     value: "qualityassurance"
-  # NODE-D5 — hardcoded 8890 (not the <port-number> token).
+  # Port is the <port-number> token, provisioned to the platform port.
   - name: "PORT"
-    value: "8890"
+    value: "<port-number>"
   - name: "ContainerMode"
     value: "true"
   - name: "SECRETS_MOUNT_PATH"
@@ -78,8 +78,8 @@ securityContext:
 service:
   type: ClusterIP
   port: 80
-  # NODE-D5 — targetPort hardcoded to the container port 8890 (not <port-number>).
-  targetPort: 8890
+  # targetPort matches the container port (the <port-number> token).
+  targetPort: <port-number>
 
 ingress:
   enabled: true

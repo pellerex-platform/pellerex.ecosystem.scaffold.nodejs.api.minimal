@@ -69,9 +69,9 @@ spec:
                   fieldPath: {{ $v | quote }}
             {{- end }}
           ports:
-            # NODE-D5 — container binds 8890 (NOT the <port-number> token / 80).
+            # Container binds the <port-number> token (not the Service port 80).
             - name: http
-              containerPort: 8890
+              containerPort: <port-number>
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

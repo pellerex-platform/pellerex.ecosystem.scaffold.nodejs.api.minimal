@@ -8,7 +8,7 @@ import {
 export interface AppConfig {
   APP_ENV: string;
   NODE_ENV: string;
-  /** Hardcoded platform contract port — NOT the `<port-number>` token (NODE-D5). */
+  /** Container port — the `<port-number>` token (NODE-D5), provisioned platform-wide. */
   PORT: number;
   appName: string;
   appVersion: string;
@@ -46,7 +46,7 @@ export default (): AppConfig => {
   const config: AppConfig = {
     APP_ENV: appEnv,
     NODE_ENV: process.env.NODE_ENV || 'development',
-    PORT: 8890,
+    PORT: <port-number>,
     appName: file?.app?.name || 'nestjs-api',
     appVersion: file?.app?.version || '1.0.0',
     // Logging precedence (config-as-code): env var > config.{env}.json > default.
