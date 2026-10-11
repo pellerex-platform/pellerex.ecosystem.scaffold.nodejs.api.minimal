@@ -47,9 +47,11 @@ Structured logging via **pino** (`nestjs-pino`), fanned out to three sinks like 
    the OTel logs pipeline that `useAzureMonitor` registers (first-party, in-process — no collector),
    with trace↔log correlation injected automatically.
 
-Every record carries `service.name` / `service.version` / `deployment.environment`. Every request is
-logged with a correlation id (inbound `X-Correlation-Id` honoured, otherwise a UUID; always echoed on
-the response). Settings precedence: env var > `config.{env}.json` > default — `LOG_LEVEL`,
+Every record carries `service.name` / `service.version` / `deployment.environment`. Every request has
+a correlation id: an inbound `X-Correlation-Id` is taken as sent when it is at most 128 characters of
+ASCII letters, digits, hyphens, underscores and dots, and any other, or none, is replaced with a new
+UUID. The id is always echoed on the response, and every record written while the request is served
+carries it as `CorrelationId`. Settings precedence: env var > `config.{env}.json` > default: `LOG_LEVEL`,
 `LOG_FILE_ENABLED`, `LOG_FILE_DIRECTORY`, `LOG_RETENTION_DAYS` map to the `logging` block.
 
 ## Layout

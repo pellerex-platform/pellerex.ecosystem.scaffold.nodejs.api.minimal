@@ -9,10 +9,12 @@ import {
 } from '@nestjs/platform-fastify';
 import helmet from '@fastify/helmet';
 import { Logger as PinoLogger } from 'nestjs-pino';
-import { randomUUID } from 'crypto';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { CORRELATION_ID_HEADER } from './logging/logger-options';
+import {
+  CORRELATION_ID_HEADER,
+  takeOrMakeCorrelationId,
+} from './logging/logger-options';
 
 /**
  * Container port — the `<port-number>` tokeniser token (NODE-D5), provisioned to the
@@ -28,15 +30,15 @@ async function bootstrap(): Promise<void> {
   //
   // Correlation id (the .NET LogContextEnrichment equivalent): Fastify assigns
   // the request id BEFORE any middleware, so it — not pino-http — must derive it
-  // from the inbound X-Correlation-Id header (or mint a UUID). pino-http then
-  // reuses it as `req.id` on every log record for the request.
+  // from the inbound X-Correlation-Id header when that is safe to log (or mint
+  // a UUID). pino-http then reuses it as `req.id` on every log record for the
+  // request.
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
-      genReqId: (req: { headers: Record<string, string | string[] | undefined> }) => {
-        const header = req.headers[CORRELATION_ID_HEADER];
-        return (Array.isArray(header) ? header[0] : header) || randomUUID();
-      },
+      genReqId: (req: {
+        headers: Record<string, string | string[] | undefined>;
+      }) => takeOrMakeCorrelationId(req.headers[CORRELATION_ID_HEADER]),
     }),
     { bufferLogs: true },
   );

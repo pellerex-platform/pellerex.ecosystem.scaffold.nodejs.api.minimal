@@ -11,6 +11,26 @@ const MACHINE_NAME = hostname();
  * .NET LogContextEnrichment CorrelationId and the Go scaffold's middleware). */
 export const CORRELATION_ID_HEADER = 'x-correlation-id';
 
+/**
+ * A caller's correlation id is taken as sent only when it matches this. The id
+ * comes from outside and is written to the logs and to the reply, so only a run
+ * of at most 128 ASCII letters, digits, hyphens, underscores and dots is.
+ */
+const ACCEPTABLE_CORRELATION_ID = /^[A-Za-z0-9._-]{1,128}$/;
+
+/**
+ * The correlation id of a request: the one its caller sent in the
+ * `X-Correlation-Id` header when that is safe to log, a new UUID otherwise.
+ */
+export function takeOrMakeCorrelationId(
+  header: string | string[] | undefined,
+): string {
+  const sent = Array.isArray(header) ? header[0] : header;
+  return sent !== undefined && ACCEPTABLE_CORRELATION_ID.test(sent)
+    ? sent
+    : randomUUID();
+}
+
 /** Subset of AppConfig the logger needs (mirrors the Go LogConfig). */
 export interface LoggerSettings {
   level: string;
@@ -33,8 +53,10 @@ export interface LoggerSettings {
  *    `telemetry/instrument.ts`), which hooks pino itself — no extra stream here.
  *
  * Every record carries the standing enrichers (`service.name`,
- * `service.version`, `deployment.environment`); every HTTP request is logged
- * with a generated/propagated correlation id that is echoed on the response.
+ * `service.version`, `deployment.environment`); every HTTP request has a
+ * correlation id (its caller's when that is safe to log, a new one otherwise)
+ * that is echoed on the response and carried by every record written while the
+ * request is served.
  */
 export function buildLoggerOptions(settings: LoggerSettings): Params {
   const streams: pino.StreamEntry[] = [
@@ -75,13 +97,14 @@ export function buildLoggerOptions(settings: LoggerSettings): Params {
           'service.version': settings.serviceVersion,
           'deployment.environment': settings.environment,
         },
-        // Correlation id: honour the inbound header or generate one, and echo
-        // it on the response. pino-http logs it as `req.id` on every record
-        // produced within the request context.
+        // Correlation id: take the inbound header when it is safe to log or
+        // generate one, and echo it on the response. pino-http only calls this
+        // for a request that has no id yet: under Fastify the adapter has
+        // already given it one (see main.ts), by the same rule.
         genReqId: (req: IncomingMessage, res: ServerResponse) => {
-          const header = req.headers[CORRELATION_ID_HEADER];
-          const id =
-            (Array.isArray(header) ? header[0] : header) || randomUUID();
+          const id = takeOrMakeCorrelationId(
+            req.headers[CORRELATION_ID_HEADER],
+          );
           res.setHeader('X-Correlation-Id', id);
           return id;
         },
@@ -103,13 +126,15 @@ export function buildLoggerOptions(settings: LoggerSettings): Params {
         customErrorMessage: (req: IncomingMessage, res: ServerResponse) =>
           `HTTP ${req.method ?? ''} ${(req.url ?? '').split('?')[0]} errored with ${res.statusCode}`,
         // pino-http evaluates customProps TWICE: at request start (child-logger
-        // bindings — URL/status/correlation aren't final yet) and again at
-        // response-finish. Binding both times duplicates every key in the
-        // completion line with stale values first, so only bind once the
-        // response has actually ended.
+        // bindings) and again at response-finish. The correlation id is final
+        // when the request starts, so it is bound then: every record written
+        // while the request is served carries it, not only the completion line.
+        // URL and status are not final yet, and binding them both times would
+        // duplicate every key in the completion line with stale values first,
+        // so the rest is only bound once the response has actually ended.
         customProps: (req: IncomingMessage, res: ServerResponse) => {
           if (!res.writableEnded) {
-            return {};
+            return { CorrelationId: String(req.id) };
           }
           const forwarded = req.headers['x-forwarded-for'];
           const clientIp =
@@ -122,7 +147,6 @@ export function buildLoggerOptions(settings: LoggerSettings): Params {
             StatusCode: res.statusCode,
             RequestMethod: req.method ?? '',
             RequestPath: (req.url ?? '').split('?')[0],
-            CorrelationId: String(res.getHeader('x-correlation-id') ?? ''),
             Environment: settings.environment,
             UserAgent: req.headers['user-agent'] ?? '',
             ClientIPAddress: clientIp,
