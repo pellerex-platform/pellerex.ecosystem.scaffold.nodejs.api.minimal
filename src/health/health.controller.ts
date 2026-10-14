@@ -1,61 +1,43 @@
-import { Controller, Get } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import {
-  HealthCheck,
-  HealthCheckResult,
-  HealthCheckService,
-  HealthIndicatorResult,
-} from '@nestjs/terminus';
+import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
+import { HealthTester } from './health-tester';
 
 /**
  * NODE-D12 — health endpoints served at ROOT (`/health/{startup,live,ready}`),
  * no `/api` prefix, matching the .NET contract and the proxy's auth-bypass list.
- * No Kubernetes probes are configured (the reference defines none).
+ *
+ * Each answers one word from the last result of the `HealthTester`: `Healthy`
+ * (200) or `Unhealthy` (503). Anyone can call them, so what failed and why goes
+ * to the health test's log line only. The words are ASP.NET Core's own, which the
+ * .NET scaffold answers with, so an app answers the same in every language. The
+ * chart's Kubernetes checks call them.
  */
 @Controller('health')
 export class HealthController {
-  constructor(
-    private readonly health: HealthCheckService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly healthTester: HealthTester) {}
 
+  /** Healthy once the first health test has finished, whatever it found. */
   @Get('startup')
-  @HealthCheck()
-  startup(): Promise<HealthCheckResult> {
-    return this.health.check([]);
+  startup(@Res({ passthrough: true }) reply: FastifyReply): string {
+    return answer(reply, this.healthTester.started());
   }
 
+  /** Healthy when the last health test passed. */
   @Get('live')
-  @HealthCheck()
-  live(): Promise<HealthCheckResult> {
-    return this.health.check([]);
+  live(@Res({ passthrough: true }) reply: FastifyReply): string {
+    return answer(reply, this.healthTester.healthy());
   }
 
+  /** Healthy when the last health test passed. */
   @Get('ready')
-  @HealthCheck()
-  ready(): Promise<HealthCheckResult> {
-    return this.health.check([() => this.checkConfig()]);
+  ready(@Res({ passthrough: true }) reply: FastifyReply): string {
+    return answer(reply, this.healthTester.healthy());
   }
+}
 
-  /**
-   * Readiness gate: config must have loaded, and — in container mode — at least one
-   * Key Vault secret must have been read from the CSI tmpfs mount (NODE-D6). A
-   * `down` status makes terminus return 503 automatically. No secret values are
-   * exposed, only the count.
-   */
-  private async checkConfig(): Promise<HealthIndicatorResult> {
-    const appEnv = this.config.get<string>('APP_ENV');
-    const secretsLoaded = this.config.get<string[]>('secretsLoaded') ?? [];
-    const containerMode = process.env.ContainerMode === 'true';
-
-    const isUp = Boolean(appEnv) && (!containerMode || secretsLoaded.length > 0);
-
-    return {
-      config: {
-        status: isUp ? 'up' : 'down',
-        appEnv: appEnv ?? null,
-        secretsLoaded: secretsLoaded.length,
-      },
-    };
-  }
+function answer(reply: FastifyReply, healthy: boolean): string {
+  void reply
+    .status(healthy ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
+    .type('text/plain; charset=utf-8');
+  return healthy ? 'Healthy' : 'Unhealthy';
 }

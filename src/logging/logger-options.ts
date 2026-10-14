@@ -19,6 +19,17 @@ export const CORRELATION_ID_HEADER = 'x-correlation-id';
 const ACCEPTABLE_CORRELATION_ID = /^[A-Za-z0-9._-]{1,128}$/;
 
 /**
+ * The health addresses (`HealthController`). Kubernetes calls them once a minute
+ * and the health test writes its own line, so a request line for them would only
+ * repeat it.
+ */
+const HEALTH_PATHS = new Set([
+  '/health/startup',
+  '/health/live',
+  '/health/ready',
+]);
+
+/**
  * The correlation id of a request: the one its caller sent in the
  * `X-Correlation-Id` header when that is safe to log, a new UUID otherwise.
  */
@@ -56,7 +67,8 @@ export interface LoggerSettings {
  * `service.version`, `deployment.environment`); every HTTP request has a
  * correlation id (its caller's when that is safe to log, a new one otherwise)
  * that is echoed on the response and carried by every record written while the
- * request is served.
+ * request is served. Every request but those to the health addresses writes one
+ * request line when it ends.
  */
 export function buildLoggerOptions(settings: LoggerSettings): Params {
   const streams: pino.StreamEntry[] = [
@@ -108,7 +120,13 @@ export function buildLoggerOptions(settings: LoggerSettings): Params {
           res.setHeader('X-Correlation-Id', id);
           return id;
         },
-        autoLogging: true,
+        // Under Fastify the request reaches this through its middleware layer,
+        // which has cut the address down to "/" by then and keeps it whole in
+        // originalUrl.
+        autoLogging: {
+          ignore: (req: IncomingMessage & { originalUrl?: string }) =>
+            HEALTH_PATHS.has((req.originalUrl ?? req.url ?? '').split('?')[0]),
+        },
         // The flat attribute names below are a CONTRACT with the Pellerex
         // portal's Logs tab: its KQL reads customDimensions.RequestMethod /
         // RequestPath / StatusCode / Elapsed / CorrelationId / Environment /

@@ -21,7 +21,7 @@ export interface AppConfig {
   appInsightsConnectionString: string;
   /** Secret read from the CSI tmpfs file mount (NODE-D6). */
   dbConnectionString: string;
-  /** Names (never values) of the secrets read from the mount — used by /health/ready. */
+  /** Names (never values) of the secrets read from the mount, reported by /v1/secret-status. */
   secretsLoaded: string[];
 }
 

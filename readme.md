@@ -17,7 +17,7 @@ and `<secret-provider-class-enabled>` are substituted by the platform
 |---|---|---|
 | HTTP adapter | **Fastify** (`@nestjs/platform-fastify`) | NODE-D20 |
 | Port | The `<port-number>` token everywhere, provisioned platform-wide | NODE-D5 |
-| Health | `@nestjs/terminus` at `/health/{startup,live,ready}` (root, no `/api`) | NODE-D12 |
+| Health | `/health/{startup,live,ready}` (root, no `/api`), answering `Healthy` (200) or `Unhealthy` (503) from the health test `HealthTester` runs once a minute; one log line per test, no request line for these addresses. A new app has nothing to test: provide its checks as `HEALTH_CHECKS` in `health.module.ts`. The chart's Kubernetes checks take a pod out of traffic after two failed checks and restart it after five | NODE-D12 |
 | Config | `@nestjs/config` + `config.{env}.json`, validate-at-boot / fail-fast | NODE-D22 |
 | Secrets | CSI **tmpfs file mount**, key-per-file → `@nestjs/config` (no `secretObjects`, no env vars, never in etcd) | NODE-D6 |
 | Telemetry | `@azure/monitor-opentelemetry` (first-party) from the connection-string token | NODE-D7 |
@@ -64,7 +64,7 @@ src/
   logging/                    pino sink fan-out: rotating file streams + logger options
   telemetry/instrument.ts     Azure Monitor OpenTelemetry init + pino→OTel logs bridge (imported first)
   common/filters/             global exception filter
-  health/                     terminus controller — /health/{startup,live,ready}
+  health/                     health test (once a minute) + controller for /health/{startup,live,ready}
   hello/                      sample endpoint + class-validator DTO + /v1/secret-status
 infrastructure/
   Dockerfile is at repo root
