@@ -67,6 +67,7 @@ describe('the request logger', () => {
   async function serve(
     sent?: string,
     idAlreadyOnTheRequest?: string,
+    path = '/v1/hello?page=2',
   ): Promise<{
     onReply: string | undefined;
     written: string[];
@@ -104,7 +105,7 @@ describe('the request logger', () => {
         {
           host: '127.0.0.1',
           port,
-          path: '/v1/hello?page=2',
+          path,
           agent: false,
           headers: sent === undefined ? {} : { [HEADER]: sent },
         },
@@ -175,6 +176,28 @@ describe('the request logger', () => {
       RequestMethod: 'GET',
       RequestPath: '/v1/hello',
       Environment: 'development',
+    });
+  });
+
+  // Kubernetes calls the health addresses once a minute and the health test
+  // writes its own line, so a call to them writes no request line.
+  it.each([
+    '/health/startup',
+    '/health/live',
+    '/health/ready',
+    '/health/ready?probe=1',
+  ])('writes no request line for a call to %s', async (path) => {
+    const { lines } = await serve('Order-42', undefined, path);
+
+    expect(completionLine(lines)).toBeUndefined();
+    expect(lineOfTheHandler(lines)[LOG_FIELD]).toBe('Order-42');
+  });
+
+  it('keeps the request line of an address that only starts like a health address', async () => {
+    const { lines } = await serve('Order-42', undefined, '/health/readyz');
+
+    expect(completionLine(lines)).toMatchObject({
+      RequestPath: '/health/readyz',
     });
   });
 
