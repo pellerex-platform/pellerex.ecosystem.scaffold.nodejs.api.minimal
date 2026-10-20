@@ -70,7 +70,7 @@ infrastructure/
   Dockerfile is at repo root
   Helm/                       Deployment + Service(ClusterIP 80→<port-number>) + Ingress + serviceaccount, per-env values
   secret-provider-class-{env}.yaml   CSI file mount, *-api-vault, no secretObjects
-  azure-containers-pipelines.yml     npm ci → nest build → test → npm audit → docker build/push
+  azure-containers-pipelines.yml     npm ci → nest build → unit tests (Dockerfile stage) → npm audit → docker build/push
 ```
 
 ## Develop
@@ -89,3 +89,8 @@ npm run build              # -> dist/
 Health: `GET /health/startup|live|ready`. Sample: `GET /v1/hello`, `POST /v1/echo`
 `{ "message": "..." }`, `GET /v1/secret-status` (proves the Key Vault secret was
 read from the tmpfs mount without exposing its value).
+
+Both builds (`.github/workflows/ci.yaml` and the Azure DevOps pipeline) run `npm test` in the
+Dockerfile's `unit-tests` stage and keep the JUnit results and Cobertura coverage as the
+`test-coverage` artifact, which Pellerex reads after the build for the app's Test Coverage tab.
+A failing test stops the build before the image is built.

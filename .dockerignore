@@ -21,4 +21,5 @@ logs
 .vscode
 .idea
 test
-**/*.spec.ts
+# The *.spec.ts files stay in: the Dockerfile's unit-tests stage runs them. The image never
+# holds them, because nest build leaves them out of dist (tsconfig.build.json).

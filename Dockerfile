@@ -22,6 +22,24 @@ RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
+# --- Unit tests with coverage (built only for the unit-test-results target, never for the image) ---
+# Runs the template's own `npm test`, adding JUnit results (jest-junit) and Cobertura coverage
+# (Jest's own reporter), then writes the test command's exit code beside them. The RUN always
+# succeeds, so a failing test keeps its results; the build stops on the exit code afterwards.
+FROM builder AS unit-tests
+# A test file that does not compile is reported in the JUnit file as an error, not left out.
+ENV JEST_JUNIT_OUTPUT_DIR=/unit-test-results/test-coverage/unit-tests \
+  JEST_JUNIT_REPORT_TEST_SUITE_ERRORS=true
+RUN mkdir -p /unit-test-results/test-coverage/unit-tests /unit-test-results/test-coverage/coverage \
+  && npm test -- --coverage --coverageReporters=cobertura \
+    --coverageDirectory=/unit-test-results/test-coverage/coverage \
+    --reporters=default --reporters=jest-junit; \
+  echo $? > /unit-test-results/unit-tests-exit-code
+
+# --- The test results alone, for a local export (--target unit-test-results --output type=local) ---
+FROM scratch AS unit-test-results
+COPY --from=unit-tests /unit-test-results /
+
 # --- Slim runtime image ---
 FROM node:22-alpine AS runner
 ENV NODE_ENV=production
